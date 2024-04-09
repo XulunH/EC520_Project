@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageStat, ImageEnhance
 import math
 import os
 import sys
@@ -9,9 +9,7 @@ import numpy as np
 import shapely.geometry
 import shapely.affinity
 
-def rotate_img(input_path, degrees):
-
-    img=Image.open(input_path)
+def rotate_img(img, degrees):
     rotated=img.rotate(degrees,expand=False)
     return rotated
 
@@ -109,15 +107,30 @@ def NMS(final_ann_path, iou_threshold):
         formatted_row = ' '.join(map(str, row)) + '\n'
         file.write(formatted_row)
 
+def brightness(img,conf):
+   im = img.convert('L')
+   stat = ImageStat.Stat(im)
+   if(stat.rms[0]<90):
+      img_enhancer = ImageEnhance.Brightness(img)
+      factor = 3
+      enhanced_output = img_enhancer.enhance(factor)
+      return enhanced_output, conf-0.25
+   else:
+      return img, conf
+
+
+
 
 
 
 def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path,mid_ann_path,final_ann_path, output_path):
   degrees=360/rotation_times
   results=[]
-  
+  img=Image.open(image_path)
+  adjusted_img,conf=brightness(img,conf)
+  print(conf)
   for times in range (rotation_times):
-    results.append(draw_inverted_triangle(rotate_img(image_path,degrees*times),degrees))
+    results.append(draw_inverted_triangle(rotate_img(adjusted_img,degrees*times),degrees))
   
   model = YOLO(yolo_ver) #can be swapped with yolov5su and conf=0.59 for faster performance  or yolov5lu with conf=0.55 for more confidence
   res=model.predict(results,classes=[0],conf=conf,iou=iou_within_one_subsample,device=device)
@@ -168,7 +181,7 @@ def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_th
 if __name__ == "__main__":
   
   rotation_times=10
-  conf=0.5
+  conf=0.48
   iou_within_one_subsample=0.33
   iou_threshold_between_subsamples=0.35
   save_mid_points= False
@@ -186,8 +199,8 @@ if __name__ == "__main__":
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path)
 
   else:
-    for i in range(1,1002,50):
-      image_path=HABBOF_path+f'Lab1/{i:06}.jpg'
+    for i in range(400,1302,50):
+      image_path=HABBOF_path+f'Lab2/{i:06}.jpg'
       output_path=f'results/result{i:06}.jpg'
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path) 
    
