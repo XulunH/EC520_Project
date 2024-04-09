@@ -4,15 +4,10 @@ import os
 import sys
 from ultralytics import YOLO
 import cv2
-import torch
 from utils import drawRoBBs
 import numpy as np
-from matplotlib.path import Path
-import matplotlib.patches as patches
 import shapely.geometry
 import shapely.affinity
-from matplotlib import pyplot
-from descartes import PolygonPatch
 
 def rotate_img(input_path, degrees):
 
@@ -50,7 +45,7 @@ def rotate_point(x, y, angle_degrees, center=(0.5, 0.5)):
     
     return (x_final, y_final)
   
-def process_file(input_path, output_path):
+def convert_to_original(input_path, output_path):
     with open(input_path, 'r') as file:
         lines = file.readlines()
 
@@ -66,12 +61,58 @@ def process_file(input_path, output_path):
 
     with open(output_path, 'w') as file:
         file.writelines(modified_lines)
+
 def count_lines(filepath):
 
     with open(filepath, 'r') as file:
         return sum(1 for line in file)
 
-def detect(image_path,yolo_ver, rotation_times,mid_ann_path,final_ann_path, output_path):
+class RotatedRect:
+    def __init__(self, param):
+        self.cx = param[1]*2048
+        self.cy = param[2]*2048
+        self.w = param[3]*2048
+        self.h = param[4]*2048
+        self.angle = param[6]
+
+    def get_contour(self):
+        w = self.w
+        h = self.h
+        c = shapely.geometry.box(-w/2.0, -h/2.0, w/2.0, h/2.0)
+        rc = shapely.affinity.rotate(c, self.angle)
+        return shapely.affinity.translate(rc, self.cx, self.cy)
+
+    def intersection(self, other):
+        return self.get_contour().intersection(other.get_contour())
+
+def calculate_iou(param1,param2):
+  
+  r1 = RotatedRect(param1)
+  r2 = RotatedRect(param2)
+  return  r1.intersection(r2).area/max(r1.get_contour().area,r2.get_contour().area)
+
+def NMS(final_ann_path, iou_threshold):
+    with open(final_ann_path, 'r') as file:
+        array = [[float(num) for num in line.split()] for line in file]
+    to_delete = set()
+
+    for i in range(len(array)):
+        for j in range(i + 1, len(array)):
+            if array[i][-1] != array[j][-1] and calculate_iou(array[i], array[j]) > iou_threshold:
+                
+                loser_index = i if array[i][5] < array[j][5] else j
+                to_delete.add(loser_index)
+    for index in sorted(to_delete, reverse=True):
+        del array[index]
+    with open(final_ann_path, 'w') as file:
+      for row in array:
+        formatted_row = ' '.join(map(str, row)) + '\n'
+        file.write(formatted_row)
+
+
+
+
+def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path,mid_ann_path,final_ann_path, output_path):
   degrees=360/rotation_times
   results=[]
   
@@ -79,7 +120,7 @@ def detect(image_path,yolo_ver, rotation_times,mid_ann_path,final_ann_path, outp
     results.append(draw_inverted_triangle(rotate_img(image_path,degrees*times),degrees))
   
   model = YOLO(yolo_ver) #can be swapped with yolov5su and conf=0.59 for faster performance  or yolov5lu with conf=0.55 for more confidence
-  res=model.predict(results,classes=[0],conf=0.25,device='cuda:0')
+  res=model.predict(results,classes=[0],conf=conf,iou=iou_within_one_subsample,device=device)
   i=0
   
   if os.path.exists(mid_ann_path):
@@ -87,7 +128,8 @@ def detect(image_path,yolo_ver, rotation_times,mid_ann_path,final_ann_path, outp
   with open(mid_ann_path, "w") as f:
       pass
   for r in res:
-    #r.save(f'mid_points/{i}.jpg')
+    if(save_mid_points):
+     r.save(f'mid_points/{i}.jpg')
     lines_before = count_lines(mid_ann_path)
     r.save_txt(mid_ann_path, save_conf=True)
     lines_after = count_lines(mid_ann_path)
@@ -109,55 +151,47 @@ def detect(image_path,yolo_ver, rotation_times,mid_ann_path,final_ann_path, outp
     os.remove(final_ann_path)
   with open(final_ann_path, "w") as f:
       pass
-  process_file(mid_ann_path,final_ann_path)
-  fr = cv2.imread(image_path)
-        
-  fr_bb = drawRoBBs(fr=fr, ann_path=final_ann_path)
-  cv2.imwrite(output_path, fr_bb)
+  convert_to_original(mid_ann_path,final_ann_path)
+  fr = cv2.imread(image_path) 
+  if(count_lines(final_ann_path)==0):
+    cv2.imwrite(output_path, fr)
+  elif(iou_threshold_between_subsamples==1 or count_lines(final_ann_path)==1):
+    fr_bb = drawRoBBs(fr=fr, ann_path=final_ann_path)
+    cv2.imwrite(output_path, fr_bb)
+  else:    
+    NMS(final_ann_path,iou_threshold_between_subsamples)
+    fr_bb = drawRoBBs(fr=fr, ann_path=final_ann_path)
+    cv2.imwrite(output_path, fr_bb)
 
-
-class RotatedRect:
-    def __init__(self, param):
-        self.cx = param[1]
-        self.cy = param[2]
-        self.w = param[3]
-        self.h = param[4]
-        self.angle = param[6]
-
-    def get_contour(self):
-        w = self.w
-        h = self.h
-        c = shapely.geometry.box(-w/2.0, -h/2.0, w/2.0, h/2.0)
-        rc = shapely.affinity.rotate(c, self.angle)
-        return shapely.affinity.translate(rc, self.cx, self.cy)
-
-    def intersection(self, other):
-        return self.get_contour().intersection(other.get_contour())
-
-def calculate_iou(param1,param2):
-  
-  r1 = RotatedRect(param1)
-  r2 = RotatedRect(param2)
-  return  r1.intersection(r2).area/r1.get_contour().area
-
-print(calculate_iou(any,any))
 
 #main program         
 if __name__ == "__main__":
+  
+  rotation_times=10
+  conf=0.5
+  iou_within_one_subsample=0.33
+  iou_threshold_between_subsamples=0.35
+  save_mid_points= False
+  yolo_ver='yolov5su.pt'
+  device='cuda:0'
+  mid_ann_path='mid_points/boxes.txt' 
+  final_ann_path='results/final_annotation.txt'
+  HABBOF_path='C:/Users/huang/OneDrive/Desktop/520_Image/HABBOF/'
+  
+
   if len(sys.argv) == 2:
-      image_path = sys.argv[1]
-      print(f"Processing file: {image_path}")
+      image_path = HABBOF_path+sys.argv[1]
+      save_mid_points= True
+      output_path='results/result.jpg'
+      detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path)
 
   else:
-      print("Usage: python3 detect.py <image_file>")
-      sys.exit(1) 
+    for i in range(1,1002,50):
+      image_path=HABBOF_path+f'Lab1/{i:06}.jpg'
+      output_path=f'results/result{i:06}.jpg'
+      detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path) 
    
-  rotation_times=10
-  yolo_ver='yolov5su.pt'
-  mid_ann_path='mid_points/boxes.txt' 
-  final_ann_path='results/annotation.txt'
-  output_path='results/result.jpg'
-  for i in range(1,1000,50):
-    input_path=f'HABBOF/Lab2/{i:06}.jpg'
-    output_path=f'results/result{i:06}.jpg'
-    detect(input_path,yolo_ver,rotation_times,mid_ann_path,final_ann_path,output_path)
+  
+  
+ 
+  

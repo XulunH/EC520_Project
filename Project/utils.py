@@ -7,19 +7,10 @@ import xml.etree.ElementTree as ET
 
 
 def drawRoBBs(fr=None, ann_path=None):
-    '''Draws rotated bounding boxes to the corresponding image and returns the annotated image
-    This function can be called in two separate ways. 
-    
-    Args:
-    fr: RGB Image in uint8 format
-    ann_dir: Path of the annotation file
-    
-    returns:
-    anoted RGB image in uint8 format  
-    '''
+ 
     fr_out = fr.copy()
     if os.path.exists(ann_path):
-        objects = np.loadtxt(ann_path, dtype=str)
+        objects = np.loadtxt(ann_path, dtype=str, ndmin=2)
         for obj in objects:
             # Get box properties
             x = float(obj[1])*2048
