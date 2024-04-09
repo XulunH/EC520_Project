@@ -107,10 +107,11 @@ def NMS(final_ann_path, iou_threshold):
         formatted_row = ' '.join(map(str, row)) + '\n'
         file.write(formatted_row)
 
-def brightness(img,conf):
+def adjust_image_brightness(img,conf):
    im = img.convert('L')
    stat = ImageStat.Stat(im)
-   if(stat.rms[0]<90):
+   brightness_threshold=90
+   if(stat.rms[0]<brightness_threshold):
       img_enhancer = ImageEnhance.Brightness(img)
       factor = 3
       enhanced_output = img_enhancer.enhance(factor)
@@ -127,7 +128,7 @@ def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_th
   degrees=360/rotation_times
   results=[]
   img=Image.open(image_path)
-  adjusted_img,conf=brightness(img,conf)
+  adjusted_img,conf=adjust_image_brightness(img,conf)
   print(conf)
   for times in range (rotation_times):
     results.append(draw_inverted_triangle(rotate_img(adjusted_img,degrees*times),degrees))
