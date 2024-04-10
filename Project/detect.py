@@ -29,6 +29,37 @@ def draw_inverted_triangle(img, degrees):
     res = Image.composite(img, black_fill, mask)
     return res
 
+def count_lines(filepath):
+
+    with open(filepath, 'r') as file:
+        return sum(1 for line in file)
+    
+def mid_ann_processing(res, mid_ann_path, save_mid_points, degrees):
+  i=0
+  if os.path.exists(mid_ann_path):
+     os.remove(mid_ann_path)
+  with open(mid_ann_path, "w") as f:
+      pass
+  for r in res:
+    if(save_mid_points):
+     r.save(f'mid_points/{i}.jpg')
+    lines_before = count_lines(mid_ann_path)
+    r.save_txt(mid_ann_path, save_conf=True)
+    lines_after = count_lines(mid_ann_path)
+    
+    added_lines_count = lines_after - lines_before
+    
+    if added_lines_count > 0:
+        with open(mid_ann_path, 'r') as file:
+            lines = file.readlines()
+        for index in range(-added_lines_count, 0):
+            lines[index] = lines[index].strip() + f" {i*degrees}\n"
+        
+        with open(mid_ann_path, 'w') as file:
+            file.writelines(lines)
+    
+    i += 1
+
 def rotate_point(x, y, angle_degrees, center=(0.5, 0.5)):
     angle_rad = np.radians(angle_degrees)
   
@@ -42,8 +73,12 @@ def rotate_point(x, y, angle_degrees, center=(0.5, 0.5)):
     y_final = y_rotated + center[1]
     
     return (x_final, y_final)
-  
-def convert_to_original(input_path, output_path):
+
+def final_ann_processing(input_path, output_path):
+    if os.path.exists(output_path):
+      os.remove(output_path)
+    with open(output_path, "w") as f:
+      pass
     with open(input_path, 'r') as file:
         lines = file.readlines()
 
@@ -60,10 +95,7 @@ def convert_to_original(input_path, output_path):
     with open(output_path, 'w') as file:
         file.writelines(modified_lines)
 
-def count_lines(filepath):
 
-    with open(filepath, 'r') as file:
-        return sum(1 for line in file)
 
 class RotatedRect:
     def __init__(self, param):
@@ -135,37 +167,10 @@ def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_th
   
   model = YOLO(yolo_ver) #can be swapped with yolov5su and conf=0.59 for faster performance  or yolov5lu with conf=0.55 for more confidence
   res=model.predict(results,classes=[0],conf=conf,iou=iou_within_one_subsample,device=device)
-  i=0
   
-  if os.path.exists(mid_ann_path):
-    os.remove(mid_ann_path)
-  with open(mid_ann_path, "w") as f:
-      pass
-  for r in res:
-    if(save_mid_points):
-     r.save(f'mid_points/{i}.jpg')
-    lines_before = count_lines(mid_ann_path)
-    r.save_txt(mid_ann_path, save_conf=True)
-    lines_after = count_lines(mid_ann_path)
-    
-    added_lines_count = lines_after - lines_before
-    
-    if added_lines_count > 0:
-        with open(mid_ann_path, 'r') as file:
-            lines = file.readlines()
-        for index in range(-added_lines_count, 0):
-            lines[index] = lines[index].strip() + f" {i*degrees}\n"
-        
-        with open(mid_ann_path, 'w') as file:
-            file.writelines(lines)
-    
-    i += 1
-  
-  if os.path.exists(final_ann_path):
-    os.remove(final_ann_path)
-  with open(final_ann_path, "w") as f:
-      pass
-  convert_to_original(mid_ann_path,final_ann_path)
+  mid_ann_processing(res, mid_ann_path, save_mid_points, degrees)
+  final_ann_processing(mid_ann_path,final_ann_path)
+
   fr = cv2.imread(image_path) 
   if(count_lines(final_ann_path)==0):
     cv2.imwrite(output_path, fr)
