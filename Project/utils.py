@@ -17,8 +17,8 @@ def drawRoBBs(fr=None, ann_path=None):
             y = float(obj[2])*2048
             w = float(obj[3])*2048
             h = float(obj[4])*2048
-            angle = float(obj[6])*np.pi/180
-
+            angle = float(obj[6]) * np.pi / 180 if len(obj) > 6 else 0
+           
             c, s = np.cos(angle), np.sin(angle)
             R = np.asarray([[-c, -s], [s, -c]])
             pts = np.asarray([[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]])

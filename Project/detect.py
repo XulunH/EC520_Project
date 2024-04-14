@@ -60,7 +60,7 @@ def mid_ann_processing(res, mid_ann_path, save_mid_points, degrees):
     
     i += 1
 
-def rotate_point(x, y, angle_degrees, center=(0.5, 0.5)):
+def rotate_point_cw(x, y, angle_degrees, center):
     angle_rad = np.radians(angle_degrees)
   
     x_translated = x - center[0]
@@ -87,7 +87,7 @@ def final_ann_processing(input_path, output_path):
         parts = line.split()
         x, y = map(float, parts[1:3])
         angle_degrees = float(parts[-1])
-        x_rotated, y_rotated = rotate_point(x, y, angle_degrees)
+        x_rotated, y_rotated = rotate_point_cw(x, y, angle_degrees,[0.5,0.5])
     
         modified_line = f"{parts[0]} {x_rotated:.6f} {y_rotated:.6f} " + " ".join(parts[3:-1]) + f" {parts[-1]}\n"
         modified_lines.append(modified_line)
@@ -187,11 +187,11 @@ def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_th
 if __name__ == "__main__":
   
   rotation_times=10
-  conf=0.48
+  conf=0.7
   iou_within_one_subsample=0.33
   iou_threshold_between_subsamples=0.35
   save_mid_points= False
-  yolo_ver='yolov5su.pt'
+  yolo_ver='best.pt'
   device='cuda:0'
   mid_ann_path='mid_points/boxes.txt' 
   final_ann_path='results/final_annotation.txt'
@@ -205,9 +205,9 @@ if __name__ == "__main__":
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path)
 
   else:
-    for i in range(400,1302,50):
-      image_path=HABBOF_path+f'Lab2/{i:06}.jpg'
-      output_path=f'results/result{i:06}.jpg'
+    for i in range(1,1000,25):
+      image_path=HABBOF_path+f'Lab1/{i:06}.jpg'
+      output_path=f'results/trained/result{i:06}.jpg'
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path) 
    
   

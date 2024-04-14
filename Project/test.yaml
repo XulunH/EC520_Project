@@ -1,0 +1,9 @@
+path: ../../../EC520_Project/Project/datasets/images
+train: train  
+val: val  
+test:  test
+
+names:
+  0: person
+
+  
