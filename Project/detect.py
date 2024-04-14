@@ -1,3 +1,4 @@
+
 from PIL import Image, ImageDraw, ImageStat, ImageEnhance
 import math
 import os
@@ -119,7 +120,7 @@ def calculate_iou(param1,param2):
   
   r1 = RotatedRect(param1)
   r2 = RotatedRect(param2)
-  return  r1.intersection(r2).area/max(r1.get_contour().area,r2.get_contour().area)
+  return  r1.intersection(r2).area/(r1.get_contour().area+r2.get_contour().area-r1.intersection(r2).area)
 
 def NMS(final_ann_path, iou_threshold):
     with open(final_ann_path, 'r') as file:
@@ -187,15 +188,21 @@ def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_th
 if __name__ == "__main__":
   
   rotation_times=10
+<<<<<<< HEAD
   conf=0.7
   iou_within_one_subsample=0.33
   iou_threshold_between_subsamples=0.35
+=======
+  conf=0.48
+  iou_within_one_subsample=0.7
+  iou_threshold_between_subsamples=0.3
+>>>>>>> 39eb44e829892e37572c292b039a909388c3c565
   save_mid_points= False
   yolo_ver='best.pt'
   device='cuda:0'
   mid_ann_path='mid_points/boxes.txt' 
   final_ann_path='results/final_annotation.txt'
-  HABBOF_path='C:/Users/huang/OneDrive/Desktop/520_Image/HABBOF/'
+  HABBOF_path='C:/Users/huang/Desktop/520/Project/HABBOF/'
   
 
   if len(sys.argv) == 2:
@@ -203,11 +210,24 @@ if __name__ == "__main__":
       save_mid_points= True
       output_path='results/result.jpg'
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path)
+      
+      #directly apply yolo
+      model = YOLO(yolo_ver) 
+      target=Image.open(image_path)
+      res=model.predict(target,classes=[0],conf=conf,iou=iou_within_one_subsample,device=device)
+      res[0].save('results/directyolo.jpg')
+      
 
   else:
+<<<<<<< HEAD
     for i in range(1,1000,25):
       image_path=HABBOF_path+f'Lab1/{i:06}.jpg'
       output_path=f'results/trained/result{i:06}.jpg'
+=======
+    for i in range(800,901,10):
+      image_path=HABBOF_path+f'Lab2/{i:06}.jpg'
+      output_path=f'results/result{i:06}.jpg'
+>>>>>>> 39eb44e829892e37572c292b039a909388c3c565
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path) 
    
   
