@@ -188,15 +188,9 @@ def detect(yolo_ver, device, rotation_times,conf,iou_within_one_subsample,iou_th
 if __name__ == "__main__":
   
   rotation_times=10
-<<<<<<< HEAD
   conf=0.7
   iou_within_one_subsample=0.33
   iou_threshold_between_subsamples=0.35
-=======
-  conf=0.48
-  iou_within_one_subsample=0.7
-  iou_threshold_between_subsamples=0.3
->>>>>>> 39eb44e829892e37572c292b039a909388c3c565
   save_mid_points= False
   yolo_ver='best.pt'
   device='cuda:0'
@@ -219,15 +213,9 @@ if __name__ == "__main__":
       
 
   else:
-<<<<<<< HEAD
     for i in range(1,1000,25):
       image_path=HABBOF_path+f'Lab1/{i:06}.jpg'
       output_path=f'results/trained/result{i:06}.jpg'
-=======
-    for i in range(800,901,10):
-      image_path=HABBOF_path+f'Lab2/{i:06}.jpg'
-      output_path=f'results/result{i:06}.jpg'
->>>>>>> 39eb44e829892e37572c292b039a909388c3c565
       detect(yolo_ver,device,rotation_times,conf,iou_within_one_subsample,iou_threshold_between_subsamples,save_mid_points, image_path, mid_ann_path, final_ann_path,output_path) 
    
   
