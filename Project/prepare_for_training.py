@@ -1,4 +1,4 @@
-
+import os
 import numpy as np
 import math
 from detect import  draw_inverted_triangle, rotate_img,drawRoBBs
@@ -41,10 +41,10 @@ def convert_annotation(unit_degrees,input_base_path, input_txt_name,output_path_
         formatted_row = f"{int(bb[0])} {bb[1]:.6f} {bb[2]:.6f} {bb[3]:.6f} {bb[4]:.6f}\n"
         if(sub_index not in subimage_indexes):
            subimage_indexes.append(sub_index)
-           with open(output_path_labels+f'{sub_index}'+input_txt_name,"w") as f:
+           with open(output_path_labels+f'{sub_index}Meeting2_'+input_txt_name,"w") as f:
              f.write(formatted_row)
         else:
-            with open(output_path_labels+f'{sub_index}'+input_txt_name,"a") as f:
+            with open(output_path_labels+f'{sub_index}Meeting2_'+input_txt_name,"a") as f:
              f.write(formatted_row)
     return subimage_indexes
         
@@ -52,44 +52,46 @@ def generate_subimages(unit_degrees,subimage_indexes,input_base_path,input_image
     img=Image.open(input_base_path+input_image_name)
     for sub_index in subimage_indexes:
         subimage=(draw_inverted_triangle(rotate_img(img,unit_degrees*sub_index),unit_degrees))
-        subimage.save(output_path_img+f'{sub_index}'+input_image_name)
+        subimage.save(output_path_img+f'{sub_index}Meeting2_'+input_image_name)
+
+
+
+def prepare_for_training(input_path_from_root, unit_degrees, output_path_img, output_path_labels):
+    input_base_path = 'C:/Users/huang/OneDrive/Desktop/520_Image/HABBOF/' + input_path_from_root
+    files = os.listdir(input_base_path)
+    image_files = [f for f in files if f.endswith('.jpg')]
+
+    for image_file in image_files:
+        base_name = os.path.splitext(image_file)[0]
+        input_label_name = f'{base_name}.txt'
+        input_image_name = image_file
+
+        full_label_path = os.path.join(input_base_path, input_label_name)
+        full_image_path = os.path.join(input_base_path, input_image_name)
+
+        if os.path.exists(full_image_path) and os.path.exists(full_label_path):
+            subimage_indexes = convert_annotation(unit_degrees, input_base_path, input_label_name, output_path_labels)
+            generate_subimages(unit_degrees, subimage_indexes, input_base_path, input_image_name, output_path_img)
+            print(f'Processing completed for {base_name}')
+        else:
+            print(f'Missing file for {base_name}, skipping...')
+
+
+def showboxes():
+   fr = cv2.imread('post_processing/Lunch1/images/1Lunch1_001042.jpg')
+   fr_bb = drawRoBBs(fr=fr, ann_path='post_processing/Lunch1/labels/1Lunch1_001042.txt')
+   cv2.imwrite('result.jpg', fr_bb)
 
 if __name__=="__main__":
     
-    input_base_path='C:/Users/huang/OneDrive/Desktop/520_Image/HABBOF/Lab1/'
+    input_base_path='C:/Users/huang/OneDrive/Desktop/520_Image/EC520_Project/Project/CEPDOF/'
     output_path_img='datasets/images/train/'
     output_path_labels='datasets/labels/train/'
     unit_degrees=36
+    prepare_for_training('Meeting2/',unit_degrees,'post_processing/Meeting2/images/','post_processing/Meeting2/labels/')
     
-    for i in range (1,1001,5):
-      input_label_name=f'{i:06}.txt'
-      input_image_name=f'{i:06}.jpg'
-      subimage_indexes=convert_annotation(unit_degrees, input_base_path, input_label_name,output_path_labels)
-      generate_subimages(unit_degrees,subimage_indexes,input_base_path,input_image_name,output_path_img)
-      print(f'{i:06}done')
-      
-    output_path_img='datasets/images/val/'
-    output_path_labels='datasets/labels/val/'
-    for i in range (1200,1401,5):
-      input_label_name=f'{i:06}.txt'
-      input_image_name=f'{i:06}.jpg'
-      subimage_indexes=convert_annotation(unit_degrees, input_base_path, input_label_name,output_path_labels)
-      generate_subimages(unit_degrees,subimage_indexes,input_base_path,input_image_name,output_path_img)
-      print(f'{i:06}done')
-    output_path_img='datasets/images/test/'
-    output_path_labels='datasets/labels/test/'
-    for i in range (1500,1701,5):
-      input_label_name=f'{i:06}.txt'
-      input_image_name=f'{i:06}.jpg'
-      subimage_indexes=convert_annotation(unit_degrees, input_base_path, input_label_name,output_path_labels)
-      generate_subimages(unit_degrees,subimage_indexes,input_base_path,input_image_name,output_path_img)
-      print(f'{i:06}done')
-     
-    '''
-    fr = cv2.imread('datasets/images/train/2000476.jpg')
-    fr_bb = drawRoBBs(fr=fr, ann_path='datasets/labels/train/2000476.txt')
-    cv2.imwrite('result.jpg', fr_bb)
-    '''
+    
+    
 
 
 
